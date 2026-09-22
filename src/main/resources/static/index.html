@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VectorDB</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23f7c6d6'/%3E%3Cpath d='M9 10l7 13 7-13' fill='none' stroke='%234a2636' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#fffafb;
+    --surface:#ffffff;
+    --tint:#fff3f7;
+    --pink-100:#fde7ee;
+    --pink-200:#f9d3e0;
+    --pink-300:#f4b9cd;
+    --pink-400:#ee9ab7;
+    --ink:#3d2b34;
+    --ink-soft:#5f4b55;
+    --muted:#8f7c86;
+    --line:#f2e3ea;
+    --line-strong:#e8d0da;
+    --ok:#3f8a67;   --ok-bg:#eef8f2;
+    --warn:#a8623f; --warn-bg:#fff4ec;
+    --radius:16px;
+    --radius-sm:11px;
+    --shadow:0 1px 2px rgba(96,54,72,.04),0 8px 24px rgba(96,54,72,.05);
+    --font:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    /* category colours (soft pastels) */
+    --cs-bg:#ece5f8;    --cs-fg:#5b4a86;    --cs-dot:#ab97d8;
+    --math-bg:#e0eef8;  --math-fg:#3f6684;  --math-dot:#85b4d9;
+    --food-bg:#fdeddb;  --food-fg:#8a5a2b;  --food-dot:#f2b47f;
+    --sports-bg:#e2f4e9;--sports-fg:#3d7a58;--sports-dot:#83c7a3;
+    --other-bg:#f3ecef; --other-fg:#6d5a63; --other-dot:#c9b5be;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--font);font-size:15px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  button:disabled{cursor:not-allowed;opacity:.55}
+  :focus-visible{outline:3px solid var(--pink-300);outline-offset:2px;border-radius:8px}
+  h1,h2,h3,p{margin:0}
+  [hidden]{display:none!important}
+
+  /* ---------- shell ---------- */
+  .shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+  .side{
+    position:sticky;top:0;height:100vh;
+    display:flex;flex-direction:column;gap:28px;
+    padding:26px 16px 20px;background:var(--surface);
+    border-right:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:11px;padding:0 10px}
+  .brand-mark{
+    width:34px;height:34px;border-radius:10px;background:var(--pink-200);
+    display:grid;place-items:center;color:var(--ink);flex:none;
+  }
+  .brand-name{font-weight:700;font-size:17px;letter-spacing:-.01em}
+  nav{display:flex;flex-direction:column;gap:4px}
+  nav a{
+    display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+    color:var(--ink-soft);text-decoration:none;font-weight:600;font-size:14.5px;
+    transition:background .15s,color .15s;
+  }
+  nav a svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  nav a:hover{background:var(--tint);color:var(--ink)}
+  nav a[aria-current="page"]{background:var(--pink-100);color:var(--ink)}
+  .ai-status{
+    margin-top:auto;padding:12px 14px;border-radius:var(--radius-sm);
+    background:var(--tint);border:1px solid var(--line);font-size:13px;color:var(--ink-soft);
+  }
+  .ai-status .row{display:flex;align-items:center;gap:8px;font-weight:650;color:var(--ink)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--line-strong);flex:none}
+  .ai-status.on .dot{background:#6fbf98}
+  .ai-status.off .dot{background:var(--pink-400)}
+  .ai-status p{margin-top:4px;line-height:1.4}
+  .ai-status button{
+    margin-top:8px;padding:0;border:0;background:none;color:var(--ink-soft);
+    font-size:12.5px;font-weight:650;text-decoration:underline;text-underline-offset:3px;
+  }
+
+  main{padding:34px clamp(20px,4vw,52px) 80px;max-width:1120px;width:100%}
+  .page{display:none}
+  .page.active{display:block}
+  .page-head{margin-bottom:22px}
+  .page-head h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .page-head p{margin-top:4px;color:var(--muted);max-width:60ch}
+
+  .banner{
+    display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:12px 14px;
+    background:var(--warn-bg);border:1px solid #f3dccb;border-radius:var(--radius-sm);
+    color:var(--warn);font-size:14px;
+  }
+
+  /* ---------- shared components ---------- */
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px;box-shadow:var(--shadow);
+  }
+  .card + .card{margin-top:18px}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .card-head h2{font-size:16px;font-weight:700}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+
+  .btn{
+    border:1px solid transparent;border-radius:12px;padding:10px 18px;font-weight:650;
+    background:var(--pink-200);color:var(--ink);transition:background .15s,transform .05s;
+    white-space:nowrap;
+  }
+  .btn:hover:not(:disabled){background:var(--pink-300)}
+  .btn:active:not(:disabled){transform:translateY(1px)}
+  .btn.ghost{background:var(--surface);border-color:var(--line-strong);font-weight:600}
+  .btn.ghost:hover:not(:disabled){background:var(--tint)}
+  .btn.tiny{padding:6px 11px;font-size:13px;border-radius:9px}
+  .link-btn{border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;padding:4px 6px;border-radius:8px}
+  .link-btn:hover{color:var(--ink);background:var(--tint)}
+
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:13px;font-weight:650;color:var(--ink-soft)}
+  input[type=text],textarea,select{
+    width:100%;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;
+    padding:11px 13px;outline:0;transition:border-color .15s,box-shadow .15s;
+  }
+  input::placeholder,textarea::placeholder{color:#b9a8b0}
+  input[type=text]:focus,textarea:focus,select:focus{border-color:var(--pink-400);box-shadow:0 0 0 4px rgba(238,154,183,.18)}
+  textarea{min-height:170px;resize:vertical;line-height:1.55}
+  select{appearance:none;padding-right:34px;cursor:pointer;
+    background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238f7c86' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 13px center}
+
+  .searchbar{
+    display:flex;gap:8px;align-items:center;padding:7px;background:var(--surface);
+    border:1px solid var(--line-strong);border-radius:16px;transition:border-color .15s,box-shadow .15s;
+  }
+  .searchbar:focus-within{border-color:var(--pink-400);box-shadow:0 0 0 4px rgba(238,154,183,.18)}
+  .searchbar svg{width:20px;height:20px;margin-left:10px;stroke:var(--muted);fill:none;stroke-width:1.8;stroke-linecap:round;flex:none}
+  .searchbar input{flex:1;min-width:0;border:0!important;box-shadow:none!important;padding:10px 6px;font-size:15.5px;background:transparent}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{
+    border:1px solid var(--line-strong);background:var(--surface);border-radius:999px;
+    padding:5px 13px;font-size:13.5px;font-weight:600;color:var(--ink-soft);
+  }
+  button.chip:hover{background:var(--tint)}
+  .chip.on{background:var(--pink-100);border-color:var(--pink-200);color:var(--ink)}
+
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap}
+  .badge.cs{background:var(--cs-bg);color:var(--cs-fg)}
+  .badge.math{background:var(--math-bg);color:var(--math-fg)}
+  .badge.food{background:var(--food-bg);color:var(--food-fg)}
+  .badge.sports{background:var(--sports-bg);color:var(--sports-fg)}
+  .badge.other{background:var(--other-bg);color:var(--other-fg)}
+
+  .empty{text-align:center;padding:34px 16px;color:var(--muted)}
+  .empty .ico{
+    width:46px;height:46px;border-radius:14px;background:var(--pink-100);color:var(--ink-soft);
+    display:grid;place-items:center;margin:0 auto 12px;
+  }
+  .empty .ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .empty strong{display:block;color:var(--ink);margin-bottom:3px;font-size:15px}
+  .empty .btn{margin-top:14px}
+
+  details.options{margin-top:14px}
+  details.options summary{
+    cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13.5px;font-weight:600;
+    list-style:none;padding:4px 2px;border-radius:8px;
+  }
+  details.options summary::-webkit-details-marker{display:none}
+  details.options summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s;margin-right:2px}
+  details.options[open] summary::before{transform:rotate(45deg)}
+  .options-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:12px;align-items:end}
+
+  /* ---------- search page ---------- */
+  .search-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}
+  .search-layout .card + .card{margin-top:0}
+  .suggest{margin-top:14px}
+  .result{
+    display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:start;
+    padding:14px 0;border-bottom:1px solid var(--line);
+  }
+  .result:last-child{border-bottom:0;padding-bottom:0}
+  .result:first-child{padding-top:0}
+  .rank{width:28px;height:28px;border-radius:50%;background:var(--pink-100);font-weight:700;font-size:13px;display:grid;place-items:center}
+  .r-title{font-weight:650}
+  .r-desc{color:var(--muted);font-size:13.5px;margin-top:1px}
+  .r-meta{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .meter{flex:1;height:6px;background:var(--pink-100);border-radius:9px;overflow:hidden;max-width:150px}
+  .meter i{display:block;height:100%;background:var(--pink-400);border-radius:9px}
+  .r-score{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .search-note{margin-top:10px;font-size:13px;color:var(--muted)}
+
+  .map-wrap svg{width:100%;height:auto;display:block;border-radius:12px;background:linear-gradient(180deg,#fffcfd,var(--tint))}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:13px;color:var(--ink-soft)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+  .bench-row{display:grid;grid-template-columns:110px minmax(0,1fr) 70px;gap:12px;align-items:center;margin:10px 0;font-size:13.5px}
+  .bench-row .track{height:9px;background:var(--pink-100);border-radius:9px;overflow:hidden}
+  .bench-row .track i{display:block;height:100%;background:var(--pink-300);border-radius:9px}
+  .bench-row.best .track i{background:#82c9a4}
+  .bench-row b{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
+
+  /* ---------- topics page ---------- */
+  .stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 16px;min-width:120px}
+  .stat b{display:block;font-size:20px;font-weight:700;line-height:1.2}
+  .stat span{font-size:13px;color:var(--muted)}
+  .add-row{display:grid;grid-template-columns:minmax(0,1fr) 210px auto;gap:12px;align-items:end}
+  .topic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-top:16px}
+  .topic{
+    border:1px solid var(--line);border-radius:14px;padding:14px 15px;background:var(--surface);
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .topic .t-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .topic .t-title{font-weight:650}
+  .topic .t-desc{font-size:13.5px;color:var(--muted);flex:1}
+  .topic .rm{border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;padding:3px 6px;border-radius:7px}
+  .topic .rm:hover{color:var(--ink);background:var(--pink-100)}
+
+  /* ---------- documents page ---------- */
+  .form-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px}
+  .doc{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;padding:15px 0;border-bottom:1px solid var(--line)}
+  .doc:first-child{padding-top:2px}
+  .doc:last-child{border-bottom:0;padding-bottom:0}
+  .doc h3{font-size:15px;font-weight:650}
+  .doc p{font-size:13.5px;color:var(--muted);margin-top:3px;max-width:70ch}
+  .doc .tags{margin-top:8px;display:flex;gap:8px}
+  .doc .tag{font-size:12px;font-weight:650;background:var(--tint);border:1px solid var(--line);color:var(--ink-soft);padding:2px 9px;border-radius:999px}
+
+  /* ---------- ask page ---------- */
+  .chat{display:flex;flex-direction:column;gap:16px}
+  .thread{display:flex;flex-direction:column;gap:14px;min-height:170px;max-height:56vh;overflow:auto;padding:2px}
+  .msg{max-width:min(680px,92%);padding:12px 15px;border-radius:16px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+  .msg.user{align-self:flex-end;background:var(--pink-100);border-bottom-right-radius:5px}
+  .msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .msg.err{background:var(--warn-bg);border-color:#f3dccb;color:var(--warn)}
+  .sources{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;white-space:normal}
+  .sources small{color:var(--muted);font-weight:600;margin-right:2px}
+  .typing{display:inline-flex;gap:5px;align-items:center;height:22px}
+  .typing i{width:7px;height:7px;border-radius:50%;background:var(--pink-300);animation:blink 1.1s infinite ease-in-out}
+  .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+  @keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:50;
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:12px;font-size:14px;font-weight:600;
+    box-shadow:0 10px 30px rgba(61,43,52,.25);max-width:90vw;
+  }
+
+  /* ---------- responsive ---------- */
+  @media(max-width:980px){
+    .search-layout{grid-template-columns:minmax(0,1fr)}
+  }
+  @media(max-width:800px){
+    .shell{display:block}
+    .side{
+      position:sticky;top:0;z-index:20;height:auto;flex-direction:row;align-items:center;justify-content:space-between;
+      padding:12px 18px;gap:12px;border-right:0;border-bottom:1px solid var(--line);
+    }
+    .brand{padding:0}
+    nav{
+      position:fixed;left:0;right:0;bottom:0;z-index:30;flex-direction:row;justify-content:space-around;gap:2px;
+      background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));
+    }
+    nav a{flex:1;flex-direction:column;gap:3px;padding:7px 4px;font-size:12px;text-align:center;justify-content:center}
+    .ai-status{margin:0;padding:6px 12px;border-radius:999px;background:var(--tint)}
+    .ai-status p,.ai-status button{display:none}
+    .ai-status .row{font-size:13px}
+    main{padding:22px 18px 110px}
+    .add-row{grid-template-columns:minmax(0,1fr)}
+    .bench-row{grid-template-columns:90px minmax(0,1fr) 62px}
+    .toast{bottom:88px}
+  }
+  @media(max-width:520px){
+    .searchbar{flex-wrap:wrap}
+    .searchbar input{flex-basis:calc(100% - 44px)}
+    .searchbar .btn{width:100%}
+    .form-foot{flex-direction:column;align-items:stretch}
+    .result{grid-template-columns:28px minmax(0,1fr)}
+    .result .badge{grid-column:2;justify-self:start}
+  }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6l7 13 7-13"/></svg>
+      </div>
+      <div class="brand-name">VectorDB</div>
+    </div>
+
+    <nav aria-label="Main">
+      <a href="#/search" data-route="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>Search
+      </a>
+      <a href="#/topics" data-route="topics">
+        <svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>Topics
+      </a>
+      <a href="#/documents" data-route="documents">
+        <svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 01-.5.5h-10A.5.5 0 017 20V3.5z"/><path d="M14 3.5V8h4M9.5 13h5M9.5 16.5h5"/></svg>Documents
+      </a>
+      <a href="#/ask" data-route="ask">
+        <svg viewBox="0 0 24 24"><path d="M5 5.5h14a1 1 0 011 1v9a1 1 0 01-1 1h-8l-4.5 3.5v-3.5H5a1 1 0 01-1-1v-9a1 1 0 011-1z"/></svg>Ask AI
+      </a>
+    </nav>
+
+    <div class="ai-status" id="aiStatus" role="status" aria-live="polite">
+      <div class="row"><span class="dot"></span><span id="aiLabel">Checking AI…</span></div>
+      <p id="aiHelp"></p>
+      <button id="aiRecheck" hidden>Check again</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="banner" id="serverBanner" hidden>
+      <span>Can't reach the VectorDB server. Start it with <b>run.bat</b> (Windows) or <b>./run.sh</b>, then open <b>http://localhost:8080</b>.</span>
+    </div>
+
+    <!-- SEARCH -->
+    <section class="page" id="page-search">
+      <div class="page-head">
+        <h1>Search</h1>
+        <p>Describe an idea and find the closest topics by meaning, not exact words.</p>
+      </div>
+
+      <div class="card">
+        <form class="searchbar" id="searchForm" role="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+          <input type="text" id="searchQuery" placeholder="Try “binary tree”, “sushi” or “calculus”" autocomplete="off" aria-label="Search query">
+          <button class="btn" id="btnSearch" type="submit">Search</button>
+        </form>
+        <div class="chips suggest" id="suggestions"><span class="small muted">Try:</span></div>
+
+        <details class="options">
+          <summary>Search options</summary>
+          <div class="options-grid">
+            <div class="field">
+              <label for="algoSelect">Search method</label>
+              <select id="algoSelect">
+                <option value="hnsw">HNSW (fast, approximate)</option>
+                <option value="kdtree">KD-Tree (exact)</option>
+                <option value="bruteforce">Brute force (checks everything)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="metricSelect">Distance measure</label>
+              <select id="metricSelect">
+                <option value="cosine">Cosine</option>
+                <option value="euclidean">Euclidean</option>
+                <option value="manhattan">Manhattan</option>
+              </select>
+            </div>
+            <div><button class="btn ghost" id="btnCompare" type="button">Compare speed</button></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="search-layout">
+        <div class="card" id="resultsCard">
+          <div class="card-head"><h2>Results</h2><span class="small muted" id="resultInfo"></span></div>
+          <div id="results">
+            <div class="empty">
+              <div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></div>
+              <strong>Nothing searched yet</strong>
+              Type an idea above or pick one of the suggestions.
+            </div>
+          </div>
+          <p class="search-note" id="searchNote"></p>
+        </div>
+
+        <div class="card map-wrap">
+          <div class="card-head"><h2>Topic map</h2><span class="small muted">Similar topics sit closer together</span></div>
+          <div id="map"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </div>
+
+      <div class="card" id="benchCard" hidden>
+        <div class="card-head"><h2>Speed comparison</h2><span class="small muted" id="benchInfo"></span></div>
+        <div id="benchBars"></div>
+        <p class="small muted">Shorter is faster. With only a few topics all three methods are quick; the gap grows with larger collections.</p>
+      </div>
+    </section>
+
+    <!-- TOPICS -->
+    <section class="page" id="page-topics">
+      <div class="page-head">
+        <h1>Topics</h1>
+        <p>These are the sample topics that Search looks through. Browse them or add your own.</p>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="card">
+        <div class="card-head"><h2>Add a topic</h2></div>
+        <form class="add-row" id="topicForm">
+          <div class="field">
+            <label for="topicText">Topic</label>
+            <input type="text" id="topicText" placeholder="e.g. Merge Sort: divide and conquer sorting" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="topicCat">Category</label>
+            <select id="topicCat"></select>
+          </div>
+          <button class="btn" type="submit">Add topic</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>All topics</h2><span class="small muted" id="topicCount"></span></div>
+        <div class="chips" id="topicFilters"></div>
+        <div class="topic-grid" id="topicGrid"></div>
+      </div>
+    </section>
+
+    <!-- DOCUMENTS -->
+    <section class="page" id="page-documents">
+      <div class="page-head">
+        <h1>Documents</h1>
+        <p>Add notes or articles. Long text is split into chunks and indexed so Ask AI can use it.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Add a document</h2></div>
+        <div class="field">
+          <label for="docTitle">Title</label>
+          <input type="text" id="docTitle" placeholder="e.g. Operating Systems Notes" autocomplete="off">
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label for="docText">Content</label>
+          <textarea id="docText" placeholder="Paste your notes, article or other text here…"></textarea>
+        </div>
+        <div class="form-foot">
+          <span class="small muted" id="docStatus" role="status"></span>
+          <button class="btn" id="btnAddDoc" type="button">Add document</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Your documents</h2><span class="small muted" id="docCount"></span></div>
+        <div id="docList"></div>
+      </div>
+    </section>
+
+    <!-- ASK -->
+    <section class="page" id="page-ask">
+      <div class="page-head">
+        <h1>Ask AI</h1>
+        <p>Ask a question about your documents. The answer is based only on what you've added.</p>
+      </div>
+
+      <div class="card chat">
+        <div class="card-head" style="margin-bottom:0"><h2>Conversation</h2><button class="link-btn" id="btnClearChat" hidden>Clear</button></div>
+        <div class="thread" id="thread" aria-live="polite"></div>
+        <form class="searchbar" id="askForm">
+          <input type="text" id="askInput" placeholder="Ask something about your documents…" autocomplete="off" aria-label="Your question">
+          <button class="btn" id="btnAsk" type="submit">Ask</button>
+        </form>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- constants ---------- */
+const CATS = {
+  cs:     { label: 'Computer science', dot: 'var(--cs-dot)' },
+  math:   { label: 'Math',             dot: 'var(--math-dot)' },
+  food:   { label: 'Food',             dot: 'var(--food-dot)' },
+  sports: { label: 'Sports',           dot: 'var(--sports-dot)' }
+};
+const catKey  = c => CATS[c] ? c : 'other';
+const catName = c => CATS[c] ? CATS[c].label : (c ? c[0].toUpperCase() + c.slice(1) : 'Other');
+const badge   = c => `<span class="badge ${catKey(c)}">${esc(catName(c))}</span>`;
+const SUGGESTIONS = ['binary tree', 'sushi', 'calculus', 'basketball', 'hash table'];
+const KEYWORDS = {
+  cs: ['tree','list','graph','hash','algorithm','sort','pointer','stack','queue','array','code','program','data structure','software','computer'],
+  math: ['calculus','algebra','probability','number','theory','derivative','integral','matrix','equation','proof','math','statistics'],
+  food: ['pizza','sushi','ramen','taco','croissant','food','recipe','cook','dish','cuisine','eat','meal','dinner','pastry'],
+  sports: ['basketball','football','tennis','chess','swim','sport','game','match','olympic','team','athlete','ball']
+};
+const STOP = new Set(['the','and','for','with','what','how','are','about','from','that','this','into','over','use','using']);
+
+/* ---------- state ---------- */
+const TOPIC_PAGE_SIZE = 60;
+const state = {
+  items: [], itemsLoaded: false, pca: null, centroids: {},
+  filter: 'all', topicsShown: TOPIC_PAGE_SIZE,
+  lastQuery: null, lastResults: [],
+  ai: 'unknown', chat: []
+};
+
+/* ---------- API ---------- */
+async function api(path, opts) {
+  let res;
+  try { res = await fetch(path, opts); }
+  catch (e) { $('#serverBanner').hidden = false; throw new Error('Cannot reach the server.'); }
+  $('#serverBanner').hidden = true;
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* non-JSON */ }
+  if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status})`);
+  return data;
+}
+const post = (path, body) => api(path, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3200);
+}
+
+/* ---------- routing ---------- */
+const ROUTES = ['search', 'topics', 'documents', 'ask'];
+function route() {
+  const name = (location.hash.replace('#/', '') || 'search');
+  const r = ROUTES.includes(name) ? name : 'search';
+  $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + r));
+  $$('nav a').forEach(a => a.toggleAttribute('aria-current', a.dataset.route === r));
+  $$('nav a').forEach(a => { if (a.dataset.route === r) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  document.title = 'VectorDB - ' + { search:'Search', topics:'Topics', documents:'Documents', ask:'Ask AI' }[r];
+  if (r === 'topics') renderTopics();
+  if (r === 'documents') loadDocs();
+  if (r === 'ask') { renderChat(); setTimeout(() => $('#askInput').focus(), 0); }
+  if (r === 'search') setTimeout(() => $('#searchQuery').focus(), 0);
+  window.scrollTo(0, 0);
+}
+addEventListener('hashchange', route);
+
+/* ---------- AI status ---------- */
+async function refreshStatus() {
+  const box = $('#aiStatus');
+  try {
+    const j = await api('/status');
+    state.ai = j.ollama === 'online' ? 'on' : 'off';
+  } catch (e) { state.ai = 'off'; }
+  box.className = 'ai-status ' + state.ai;
+  $('#aiLabel').textContent = state.ai === 'on' ? 'AI is ready' : 'AI is offline';
+  $('#aiHelp').textContent = state.ai === 'on' ? 'Documents and Ask AI are available.'
+    : 'Documents and Ask AI need Ollama running on this computer.';
+  $('#aiRecheck').hidden = state.ai === 'on';
+}
+$('#aiRecheck').addEventListener('click', async () => { await refreshStatus(); toast(state.ai === 'on' ? 'AI is ready.' : 'Ollama still isn\'t reachable.'); });
+
+/* ---------- topics data + math ---------- */
+async function loadItems() {
+  state.items = await api('/items');
+  state.itemsLoaded = true;
+  const groups = {};
+  state.items.forEach(i => (groups[i.category] ||= []).push(i.embedding));
+  state.centroids = {};
+  for (const c in groups) state.centroids[c] = mean(groups[c]);
+  state.pca = state.items.length > 2 ? buildPCA(state.items.map(i => i.embedding)) : null;
+  fillCategorySelect();
+  renderLegend();
+  renderMap();
+  // The initial load can still be in flight when a page first renders (e.g. someone
+  // opens the app straight on #/topics), so re-render whatever page is showing now
+  // that the data has actually arrived.
+  const current = location.hash.replace('#/', '') || 'search';
+  if (current === 'topics') renderTopics();
+}
+const mean = vs => vs[0].map((_, j) => vs.reduce((s, v) => s + v[j], 0) / vs.length);
+
+function buildPCA(X) {
+  const n = X.length, d = X[0].length, mu = mean(X);
+  const C = Array.from({length: d}, () => new Array(d).fill(0));
+  X.forEach(x => { for (let a = 0; a < d; a++) for (let b = 0; b < d; b++) C[a][b] += (x[a]-mu[a])*(x[b]-mu[b])/n; });
+  const comps = [];
+  for (let c = 0; c < 2; c++) {
+    let v = Array.from({length: d}, (_, i) => Math.sin(i + 1 + c * 7));
+    for (let it = 0; it < 120; it++) {
+      let w = C.map(row => row.reduce((s, r, j) => s + r * v[j], 0));
+      comps.forEach(p => { const dot = w.reduce((s, x, j) => s + x * p[j], 0); w = w.map((x, j) => x - dot * p[j]); });
+      const norm = Math.hypot(...w) || 1; v = w.map(x => x / norm);
+    }
+    comps.push(v);
+  }
+  return { mu, comps };
+}
+const project = v => state.pca.comps.map(p => p.reduce((s, x, j) => s + x * (v[j] - state.pca.mu[j]), 0));
+
+/* Turn free text into a 16-dimensional query vector the backend can search with.
+   The demo vectors are hand-made, so we build the query from topics whose text matches,
+   falling back to the average of a category when only a category keyword matches. */
+function textToVector(text) {
+  const t = text.toLowerCase();
+  const tokens = t.split(/[^a-z0-9]+/).filter(w => w.length > 2 && !STOP.has(w));
+  let weights = state.items.map(it => {
+    const hay = it.metadata.toLowerCase();
+    return tokens.reduce((s, w) => s + (hay.includes(w) ? 1 : 0), 0);
+  });
+  if (weights.some(w => w > 0)) {
+    const sum = weights.reduce((a, b) => a + b, 0);
+    const v = new Array(state.items[0].embedding.length).fill(0);
+    state.items.forEach((it, i) => { if (weights[i]) it.embedding.forEach((x, j) => v[j] += x * weights[i] / sum); });
+    return v;
+  }
+  const hits = {};
+  for (const c in KEYWORDS) hits[c] = KEYWORDS[c].reduce((s, kw) => s + (t.includes(kw) ? 1 : 0), 0);
+  const best = Object.keys(hits).filter(c => state.centroids[c]).sort((a, b) => hits[b] - hits[a])[0];
+  return best && hits[best] > 0 ? state.centroids[best] : null;
+}
+
+/* ---------- SEARCH ---------- */
+function renderSuggestions() {
+  const box = $('#suggestions');
+  box.innerHTML = '<span class="small muted">Try:</span>' + SUGGESTIONS.map(s => `<button type="button" class="chip" data-q="${esc(s)}">${esc(s)}</button>`).join('');
+}
+$('#suggestions').addEventListener('click', e => {
+  const b = e.target.closest('[data-q]'); if (!b) return;
+  $('#searchQuery').value = b.dataset.q; runSearch();
+});
+$('#searchForm').addEventListener('submit', e => { e.preventDefault(); runSearch(); });
+$('#algoSelect').addEventListener('change', () => $('#searchQuery').value.trim() && runSearch());
+$('#metricSelect').addEventListener('change', () => $('#searchQuery').value.trim() && runSearch());
+
+async function runSearch() {
+  const q = $('#searchQuery').value.trim();
+  if (!q) { $('#searchQuery').focus(); return; }
+  const btn = $('#btnSearch'); btn.disabled = true; btn.textContent = 'Searching…';
+  try {
+    if (!state.items.length) await loadItems();
+    const vec = textToVector(q);
+    if (!vec) {
+      state.lastQuery = null; state.lastResults = [];
+      $('#results').innerHTML = `<div class="empty"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></div>
+        <strong>No matching topic for “${esc(q)}”</strong>The sample topics cover computer science, math, food and sports. Try one of the suggestions above.</div>`;
+      $('#resultInfo').textContent = ''; $('#searchNote').textContent = '';
+      renderMap(); return;
+    }
+    const algo = $('#algoSelect').value, metric = $('#metricSelect').value;
+    const j = await api(`/search?v=${vec.map(x => x.toFixed(5)).join(',')}&k=5&metric=${metric}&algo=${algo}`);
+    state.lastQuery = vec; state.lastResults = j.results || [];
+    renderResults(j);
+    renderMap();
+  } catch (e) {
+    toast(e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Search'; }
+}
+
+const ALGO_NAME = { hnsw: 'HNSW', kdtree: 'KD-Tree', bruteforce: 'Brute force' };
+function renderResults(j) {
+  const rs = j.results || [];
+  const maxD = Math.max(...rs.map(r => r.distance), 1e-6);
+  $('#results').innerHTML = rs.map((r, i) => {
+    const [title, ...rest] = r.metadata.split(':');
+    const desc = rest.join(':').trim();
+    const pct = j.metric === 'cosine' ? Math.max(0, Math.round((1 - r.distance) * 100)) : null;
+    const bar = j.metric === 'cosine' ? pct : Math.max(8, Math.round((1 - r.distance / (maxD * 1.25)) * 100));
+    const score = pct !== null ? `${pct}% match` : `distance ${r.distance.toFixed(3)}`;
+    return `<div class="result">
+      <div class="rank">${i + 1}</div>
+      <div><div class="r-title">${esc(title)}</div>${desc ? `<div class="r-desc">${esc(desc)}</div>` : ''}
+        <div class="r-meta"><div class="meter"><i style="width:${bar}%"></i></div><span class="r-score">${score}</span></div></div>
+      ${badge(r.category)}
+    </div>`;
+  }).join('');
+  $('#resultInfo').textContent = `${rs.length} found`;
+  $('#searchNote').textContent = `Searched with ${ALGO_NAME[j.algo] || j.algo} using ${j.metric} distance in ${j.latencyUs} µs.`;
+}
+
+$('#btnCompare').addEventListener('click', async () => {
+  const q = $('#searchQuery').value.trim() || 'search';
+  const btn = $('#btnCompare'); btn.disabled = true;
+  try {
+    if (!state.items.length) await loadItems();
+    const vec = textToVector(q) || state.centroids.cs || state.items[0].embedding;
+    const b = await api(`/benchmark?v=${vec.map(x => x.toFixed(5)).join(',')}&k=5&metric=${$('#metricSelect').value}`);
+    const rows = [['Brute force', b.bruteforceUs], ['KD-Tree', b.kdtreeUs], ['HNSW', b.hnswUs]];
+    const max = Math.max(...rows.map(r => r[1]), 1), min = Math.min(...rows.map(r => r[1]));
+    $('#benchBars').innerHTML = rows.map(([n, us]) => `
+      <div class="bench-row ${us === min ? 'best' : ''}"><span>${n}</span>
+        <div class="track"><i style="width:${Math.max(4, us / max * 100)}%"></i></div><b>${us} µs</b></div>`).join('');
+    $('#benchInfo').textContent = `${b.itemCount} topics`;
+    $('#benchCard').hidden = false;
+    $('#benchCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) { toast(e.message); } finally { btn.disabled = false; }
+});
+
+/* ---------- topic map ---------- */
+function renderLegend() {
+  const cats = [...new Set(state.items.map(i => i.category))];
+  $('#legend').innerHTML = cats.map(c => `<span><i style="background:${(CATS[c] || {dot:'var(--other-dot)'}).dot}"></i>${esc(catName(c))}</span>`).join('');
+}
+function renderMap() {
+  const box = $('#map');
+  if (!state.pca) { box.innerHTML = '<div class="empty">Map appears once topics load.</div>'; return; }
+  const W = 420, H = 320, P = 30;
+  // Spread each category out around its own centre so tight clusters stay readable.
+  const cproj = {}; for (const c in state.centroids) cproj[c] = project(state.centroids[c]);
+  const spread = (v, c) => { const p = project(v), o = cproj[c] || p; return [o[0] + (p[0] - o[0]) * 6, o[1] + (p[1] - o[1]) * 6]; };
+  const pts = state.items.map(i => ({ i, p: spread(i.embedding, i.category) }));
+  const nearest = state.lastResults[0];
+  const q = state.lastQuery ? spread(state.lastQuery, nearest ? nearest.category : null) : null;
+  const all = pts.map(o => o.p).concat(q ? [q] : []);
+  const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const sx = x => P + (x - x0) / ((x1 - x0) || 1) * (W - 2 * P);
+  const sy = y => H - P - (y - y0) / ((y1 - y0) || 1) * (H - 2 * P);
+  const hit = new Map(state.lastResults.map((r, idx) => [r.id, idx + 1]));
+  const active = hit.size > 0;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of topics grouped by category">`;
+  if (q) state.lastResults.forEach(r => {
+    const o = pts.find(o => o.i.id === r.id); if (!o) return;
+    s += `<line x1="${sx(q[0])}" y1="${sy(q[1])}" x2="${sx(o.p[0])}" y2="${sy(o.p[1])}" stroke="#ee9ab7" stroke-opacity=".45" stroke-width="1.4" stroke-dasharray="4 4"/>`;
+  });
+  pts.forEach(({ i, p }) => {
+    const rank = hit.get(i.id), col = (CATS[i.category] || { dot: 'var(--other-dot)' }).dot;
+    const x = sx(p[0]), y = sy(p[1]), title = esc(i.metadata.split(':')[0]);
+    if (rank) {
+      s += `<g><title>${title}</title><circle cx="${x}" cy="${y}" r="11" fill="${col}" stroke="#ee9ab7" stroke-width="3"/>
+        <text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#3d2b34">${rank}</text></g>`;
+    } else {
+      s += `<g><title>${title}</title><circle cx="${x}" cy="${y}" r="6.5" fill="${col}" opacity="${active ? .4 : .9}"/></g>`;
+    }
+  });
+  if (q) s += `<g><title>Your search</title><path d="M${sx(q[0])} ${sy(q[1]) - 9} l8 9 -8 9 -8 -9z" fill="#3d2b34"/></g>`;
+  box.innerHTML = s + '</svg>';
+  if (q) { const lg = $('#legend'); if (!lg.querySelector('.q')) lg.insertAdjacentHTML('beforeend', '<span class="q"><i style="background:#3d2b34;border-radius:2px;transform:rotate(45deg) scale(.85)"></i>Your search</span>'); }
+}
+
+/* ---------- TOPICS ---------- */
+function fillCategorySelect() {
+  const cats = [...new Set([...Object.keys(CATS), ...state.items.map(i => i.category)])];
+  const sel = $('#topicCat'), cur = sel.value;
+  sel.innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(catName(c))}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+function renderTopics() {
+  if (!state.itemsLoaded) {
+    $('#topicFilters').innerHTML = '';
+    $('#topicCount').textContent = '';
+    $('#topicGrid').innerHTML = '<div class="empty" style="grid-column:1/-1">Loading topics…</div>';
+    return;
+  }
+  const cats = [...new Set(state.items.map(i => i.category))];
+  const bar = [['all', 'All']].concat(cats.map(c => [c, catName(c)]));
+  $('#topicFilters').innerHTML = bar.map(([k, l]) => `<button class="chip ${state.filter === k ? 'on' : ''}" data-f="${esc(k)}">${esc(l)}</button>`).join('');
+  const full = state.items.filter(i => state.filter === 'all' || i.category === state.filter);
+  const list = full.slice(0, state.topicsShown);
+  $('#topicCount').textContent = `${list.length} of ${full.length} shown`;
+  $('#topicGrid').innerHTML = full.length ? list.map(i => {
+    const [t, ...r] = i.metadata.split(':');
+    return `<div class="topic"><div class="t-top">${badge(i.category)}<button class="rm" data-rm="${i.id}" aria-label="Remove ${esc(t)}">Remove</button></div>
+      <div class="t-title">${esc(t)}</div><div class="t-desc">${esc(r.join(':').trim())}</div></div>`;
+  }).join('') : '<div class="empty" style="grid-column:1/-1">No topics in this category.</div>';
+  const existingMore = $('#topicMore'); if (existingMore) existingMore.remove();
+  if (full.length > list.length) {
+    $('#topicGrid').insertAdjacentHTML('afterend',
+      `<div id="topicMore" style="text-align:center;margin-top:14px"><button class="btn ghost" id="btnMoreTopics">Show more (${full.length - list.length} left)</button></div>`);
+  }
+  renderStats();
+}
+async function renderStats() {
+  const cats = new Set(state.items.map(i => i.category)).size;
+  let layers = '';
+  try { const h = await api('/hnsw-info'); layers = `<div class="stat"><b>${h.topLayer + 1}</b><span>Index layer${h.topLayer ? 's' : ''}</span></div>`; } catch (e) {}
+  $('#stats').innerHTML = `<div class="stat"><b>${state.items.length}</b><span>Topics</span></div><div class="stat"><b>${cats}</b><span>Categories</span></div>${layers}`;
+}
+$('#topicFilters').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { state.filter = b.dataset.f; state.topicsShown = TOPIC_PAGE_SIZE; renderTopics(); } });
+document.body.addEventListener('click', e => { if (e.target.id === 'btnMoreTopics') { state.topicsShown += TOPIC_PAGE_SIZE; renderTopics(); } });
+$('#topicGrid').addEventListener('click', async e => {
+  const b = e.target.closest('[data-rm]'); if (!b) return;
+  b.disabled = true;
+  try { await api('/delete/' + b.dataset.rm, { method: 'DELETE' }); await loadItems(); state.lastResults = []; state.lastQuery = null; renderMap(); renderTopics(); toast('Topic removed.'); }
+  catch (err) { toast(err.message); b.disabled = false; }
+});
+$('#topicForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = $('#topicText').value.trim(), cat = $('#topicCat').value;
+  if (!text) { toast('Enter a topic first.'); $('#topicText').focus(); return; }
+  const base = state.centroids[cat] || (state.items[0] && state.items[0].embedding);
+  if (!base) { toast('No sample vectors to base the topic on.'); return; }
+  const emb = base.map(x => Math.min(0.98, Math.max(0.02, x + (Math.random() - .5) * .08)));
+  try {
+    await post('/insert', { metadata: text, category: cat, embedding: emb });
+    $('#topicText').value = '';
+    await loadItems(); renderTopics(); toast('Topic added.');
+  } catch (err) { toast(err.message); }
+});
+
+/* ---------- DOCUMENTS ---------- */
+const groupDocs = docs => {
+  const g = new Map();
+  docs.forEach(d => {
+    const m = d.title.match(/^(.*) \[\d+\/\d+\]$/), base = m ? m[1] : d.title;
+    if (!g.has(base)) g.set(base, { title: base, ids: [], words: 0, preview: d.preview });
+    const o = g.get(base); o.ids.push(d.id); o.words += d.words;
+  });
+  return [...g.values()];
+};
+async function loadDocs() {
+  const box = $('#docList');
+  try {
+    const docs = groupDocs(await api('/doc/list'));
+    state.docCount = docs.length;
+    $('#docCount').textContent = docs.length ? `${docs.length} document${docs.length === 1 ? '' : 's'}` : '';
+    box.innerHTML = docs.length ? docs.map(d => `
+      <div class="doc"><div><h3>${esc(d.title)}</h3><p>${esc(d.preview)}</p>
+        <div class="tags"><span class="tag">${d.words} words</span><span class="tag">${d.ids.length} chunk${d.ids.length === 1 ? '' : 's'}</span></div></div>
+        <button class="btn ghost tiny" data-ids="${d.ids.join(',')}">Remove</button></div>`).join('')
+      : `<div class="empty"><div class="ico"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 01-.5.5h-10A.5.5 0 017 20V3.5z"/><path d="M14 3.5V8h4"/></svg></div>
+         <strong>No documents yet</strong>Add your first document above to start asking questions.</div>`;
+  } catch (e) { box.innerHTML = '<div class="empty">Could not load documents.</div>'; }
+}
+$('#docList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-ids]'); if (!b) return;
+  b.disabled = true;
+  try { await Promise.all(b.dataset.ids.split(',').map(id => api('/doc/delete/' + id, { method: 'DELETE' }))); toast('Document removed.'); loadDocs(); }
+  catch (err) { toast(err.message); b.disabled = false; }
+});
+$('#btnAddDoc').addEventListener('click', async () => {
+  const title = $('#docTitle').value.trim(), text = $('#docText').value.trim(), st = $('#docStatus');
+  if (!title || !text) { st.textContent = 'Please add both a title and some content.'; return; }
+  const btn = $('#btnAddDoc'); btn.disabled = true; btn.textContent = 'Adding…'; st.textContent = 'Indexing your document. This can take a moment.';
+  try {
+    const j = await post('/doc/insert', { title, text });
+    st.textContent = `Added in ${j.chunks} chunk${j.chunks === 1 ? '' : 's'}.`;
+    $('#docTitle').value = ''; $('#docText').value = '';
+    toast('Document added.'); loadDocs();
+  } catch (e) { st.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Add document'; }
+});
+
+/* ---------- ASK ---------- */
+function renderChat() {
+  const th = $('#thread');
+  $('#btnClearChat').hidden = !state.chat.length;
+  if (!state.chat.length) {
+    th.innerHTML = `<div class="empty"><div class="ico"><svg viewBox="0 0 24 24"><path d="M5 5.5h14a1 1 0 011 1v9a1 1 0 01-1 1h-8l-4.5 3.5v-3.5H5a1 1 0 01-1-1v-9a1 1 0 011-1z"/></svg></div>
+      <strong>Ask your first question</strong>Answers come from the documents you've added.
+      <div><a class="btn ghost tiny" style="display:inline-block;text-decoration:none;margin-top:14px" href="#/documents">Add documents</a></div></div>`;
+    return;
+  }
+  th.innerHTML = state.chat.map(m => {
+    if (m.role === 'user') return `<div class="msg user">${esc(m.text)}</div>`;
+    if (m.pending) return `<div class="msg ai"><span class="typing" aria-label="Thinking"><i></i><i></i><i></i></span></div>`;
+    const src = m.sources && m.sources.length ? `<div class="sources"><small>Sources</small>${m.sources.map(s => `<span class="chip">${esc(s)}</span>`).join('')}</div>` : '';
+    return `<div class="msg ai ${m.error ? 'err' : ''}">${esc(m.text)}${src}</div>`;
+  }).join('');
+  th.scrollTop = th.scrollHeight;
+}
+$('#btnClearChat').addEventListener('click', () => { state.chat = []; renderChat(); });
+$('#askForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const q = $('#askInput').value.trim(); if (!q) return;
+  $('#askInput').value = '';
+  state.chat.push({ role: 'user', text: q });
+  const reply = { role: 'ai', pending: true }; state.chat.push(reply); renderChat();
+  const btn = $('#btnAsk'); btn.disabled = true;
+  try {
+    const j = await post('/doc/ask', { question: q, k: 3 });
+    reply.pending = false; reply.text = j.answer || 'No answer was returned.';
+    reply.sources = [...new Set((j.contexts || []).map(c => c.title.replace(/ \[\d+\/\d+\]$/, '')))];
+  } catch (err) {
+    reply.pending = false; reply.error = true;
+    reply.text = /Ollama/i.test(err.message) || state.ai === 'off'
+      ? 'The AI isn\'t available. Start Ollama, then try again.' : err.message;
+  } finally { btn.disabled = false; renderChat(); $('#askInput').focus(); }
+});
+
+/* ---------- init ---------- */
+renderSuggestions();
+refreshStatus(); setInterval(refreshStatus, 20000);
+loadItems().catch(() => {});
+route();
+</script>
+</body>
+</html>
