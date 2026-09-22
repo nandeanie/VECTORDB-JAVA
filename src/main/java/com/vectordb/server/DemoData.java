@@ -4,12 +4,18 @@ import com.vectordb.core.DistanceFn;
 import com.vectordb.core.DistanceMetrics;
 import com.vectordb.db.VectorDatabase;
 
+import java.util.Random;
+
 /**
- * Loads 20 hand-crafted 16D vectors across four semantic categories
- * (CS, Math, Food, Sports). Dims 0-3 carry CS signal, 4-7 Math,
- * 8-11 Food, 12-15 Sports — so cosine similarity naturally clusters
- * items from the same category, which is what the 2D PCA scatter
- * plot in the UI is showing off.
+ * Generates a large deterministic benchmark dataset.
+ *
+ * 50,000 vectors
+ * 16 dimensions
+ * 4 semantic categories:
+ *   CS, Math, Food, Sports
+ *
+ * Each category has a dominant region in the vector space,
+ * while random noise prevents all vectors from being identical.
  */
 final class DemoData {
 
@@ -17,70 +23,82 @@ final class DemoData {
     }
 
     static void load(VectorDatabase db) {
+
         DistanceFn dist = DistanceMetrics.get("cosine");
 
-        db.insert("Linked List: nodes connected by pointers", "cs", new float[]{
-                0.90f, 0.85f, 0.72f, 0.68f, 0.12f, 0.08f, 0.15f, 0.10f,
-                0.05f, 0.08f, 0.06f, 0.09f, 0.07f, 0.11f, 0.08f, 0.06f}, dist);
-        db.insert("Binary Search Tree: O(log n) search and insert", "cs", new float[]{
-                0.88f, 0.82f, 0.78f, 0.74f, 0.15f, 0.10f, 0.08f, 0.12f,
-                0.06f, 0.07f, 0.08f, 0.05f, 0.09f, 0.06f, 0.07f, 0.10f}, dist);
-        db.insert("Dynamic Programming: memoization overlapping subproblems", "cs", new float[]{
-                0.82f, 0.76f, 0.88f, 0.80f, 0.20f, 0.18f, 0.12f, 0.09f,
-                0.07f, 0.06f, 0.08f, 0.07f, 0.08f, 0.09f, 0.06f, 0.07f}, dist);
-        db.insert("Graph BFS and DFS: breadth and depth first traversal", "cs", new float[]{
-                0.85f, 0.80f, 0.75f, 0.82f, 0.18f, 0.14f, 0.10f, 0.08f,
-                0.06f, 0.09f, 0.07f, 0.06f, 0.10f, 0.08f, 0.09f, 0.07f}, dist);
-        db.insert("Hash Table: O(1) lookup with collision chaining", "cs", new float[]{
-                0.87f, 0.78f, 0.70f, 0.76f, 0.13f, 0.11f, 0.09f, 0.14f,
-                0.08f, 0.07f, 0.06f, 0.08f, 0.07f, 0.10f, 0.08f, 0.09f}, dist);
+        final int TOTAL_VECTORS = 50_000;
+        final int DIMENSIONS = 16;
+        final int PER_CATEGORY = TOTAL_VECTORS / 4;
 
-        db.insert("Calculus: derivatives integrals and limits", "math", new float[]{
-                0.12f, 0.15f, 0.18f, 0.10f, 0.91f, 0.86f, 0.78f, 0.72f,
-                0.08f, 0.06f, 0.07f, 0.09f, 0.07f, 0.08f, 0.06f, 0.10f}, dist);
-        db.insert("Linear Algebra: matrices eigenvalues eigenvectors", "math", new float[]{
-                0.20f, 0.18f, 0.15f, 0.12f, 0.88f, 0.90f, 0.82f, 0.76f,
-                0.09f, 0.07f, 0.08f, 0.06f, 0.10f, 0.07f, 0.08f, 0.09f}, dist);
-        db.insert("Probability: distributions random variables Bayes theorem", "math", new float[]{
-                0.15f, 0.12f, 0.20f, 0.18f, 0.84f, 0.80f, 0.88f, 0.82f,
-                0.07f, 0.08f, 0.06f, 0.10f, 0.09f, 0.06f, 0.09f, 0.08f}, dist);
-        db.insert("Number Theory: primes modular arithmetic RSA cryptography", "math", new float[]{
-                0.22f, 0.16f, 0.14f, 0.20f, 0.80f, 0.85f, 0.76f, 0.90f,
-                0.08f, 0.09f, 0.07f, 0.06f, 0.08f, 0.10f, 0.07f, 0.06f}, dist);
-        db.insert("Combinatorics: permutations combinations generating functions", "math", new float[]{
-                0.18f, 0.20f, 0.16f, 0.14f, 0.86f, 0.78f, 0.84f, 0.80f,
-                0.06f, 0.07f, 0.09f, 0.08f, 0.06f, 0.09f, 0.10f, 0.07f}, dist);
+        Random random = new Random(42);
 
-        db.insert("Neapolitan Pizza: wood-fired dough San Marzano tomatoes", "food", new float[]{
-                0.08f, 0.06f, 0.09f, 0.07f, 0.07f, 0.08f, 0.06f, 0.09f,
-                0.90f, 0.86f, 0.78f, 0.72f, 0.08f, 0.06f, 0.09f, 0.07f}, dist);
-        db.insert("Sushi: vinegared rice raw fish and nori rolls", "food", new float[]{
-                0.06f, 0.08f, 0.07f, 0.09f, 0.09f, 0.06f, 0.08f, 0.07f,
-                0.86f, 0.90f, 0.82f, 0.76f, 0.07f, 0.09f, 0.06f, 0.08f}, dist);
-        db.insert("Ramen: noodle soup with chashu pork and soft-boiled eggs", "food", new float[]{
-                0.09f, 0.07f, 0.06f, 0.08f, 0.08f, 0.09f, 0.07f, 0.06f,
-                0.82f, 0.78f, 0.90f, 0.84f, 0.09f, 0.07f, 0.08f, 0.06f}, dist);
-        db.insert("Tacos: corn tortillas with carnitas salsa and cilantro", "food", new float[]{
-                0.07f, 0.09f, 0.08f, 0.06f, 0.06f, 0.07f, 0.09f, 0.08f,
-                0.78f, 0.82f, 0.86f, 0.90f, 0.06f, 0.08f, 0.07f, 0.09f}, dist);
-        db.insert("Croissant: laminated pastry with buttery flaky layers", "food", new float[]{
-                0.06f, 0.07f, 0.10f, 0.09f, 0.10f, 0.06f, 0.07f, 0.10f,
-                0.85f, 0.80f, 0.76f, 0.82f, 0.09f, 0.07f, 0.10f, 0.06f}, dist);
+        String[] categories = {
+                "cs",
+                "math",
+                "food",
+                "sports"
+        };
 
-        db.insert("Basketball: fast-paced shooting dribbling slam dunks", "sports", new float[]{
-                0.09f, 0.07f, 0.08f, 0.10f, 0.08f, 0.09f, 0.07f, 0.06f,
-                0.08f, 0.07f, 0.09f, 0.06f, 0.91f, 0.85f, 0.78f, 0.72f}, dist);
-        db.insert("Football: tackles touchdowns field goals and strategy", "sports", new float[]{
-                0.07f, 0.09f, 0.06f, 0.08f, 0.09f, 0.07f, 0.10f, 0.08f,
-                0.07f, 0.09f, 0.08f, 0.07f, 0.87f, 0.89f, 0.82f, 0.76f}, dist);
-        db.insert("Tennis: racket volleys groundstrokes and Wimbledon serves", "sports", new float[]{
-                0.08f, 0.06f, 0.09f, 0.07f, 0.07f, 0.08f, 0.06f, 0.09f,
-                0.09f, 0.06f, 0.07f, 0.08f, 0.83f, 0.80f, 0.88f, 0.82f}, dist);
-        db.insert("Chess: openings endgames tactics strategic board game", "sports", new float[]{
-                0.25f, 0.20f, 0.22f, 0.18f, 0.22f, 0.18f, 0.20f, 0.15f,
-                0.06f, 0.08f, 0.07f, 0.09f, 0.80f, 0.84f, 0.78f, 0.90f}, dist);
-        db.insert("Swimming: butterfly freestyle backstroke Olympic competition", "sports", new float[]{
-                0.06f, 0.08f, 0.07f, 0.09f, 0.08f, 0.06f, 0.09f, 0.07f,
-                0.10f, 0.08f, 0.06f, 0.07f, 0.85f, 0.82f, 0.86f, 0.80f}, dist);
+        String[] topics = {
+                "Algorithms and Data Structures",
+                "Mathematics and Statistics",
+                "Food and Cooking",
+                "Sports and Games"
+        };
+
+        /*
+         * Each category gets a different dominant region:
+         *
+         * CS      -> dimensions 0-3
+         * Math    -> dimensions 4-7
+         * Food    -> dimensions 8-11
+         * Sports  -> dimensions 12-15
+         */
+        for (int category = 0; category < 4; category++) {
+
+            for (int i = 0; i < PER_CATEGORY; i++) {
+
+                float[] vector = new float[DIMENSIONS];
+
+                int start = category * 4;
+
+                for (int d = 0; d < DIMENSIONS; d++) {
+
+                    /*
+                     * Small background noise.
+                     */
+                    float value = 0.05f + random.nextFloat() * 0.10f;
+
+                    /*
+                     * Strong signal for this category.
+                     */
+                    if (d >= start && d < start + 4) {
+                        value += 0.70f + random.nextFloat() * 0.25f;
+                    }
+
+                    /*
+                     * A little cross-category variation.
+                     */
+                    value += (float) random.nextGaussian() * 0.025f;
+
+                    vector[d] = Math.max(0.01f, value);
+                }
+
+                String id = topics[category]
+                        + " document " + i;
+
+                db.insert(
+                        id,
+                        categories[category],
+                        vector,
+                        dist
+                );
+            }
+        }
+
+        System.out.println(
+                "Loaded " + TOTAL_VECTORS +
+                " vectors (" + DIMENSIONS + "D)"
+        );
     }
 }
